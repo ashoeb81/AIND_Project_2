@@ -247,7 +247,7 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        def max_value(game, current_depth):
+        def max_value(game, alpha, beta, current_depth):
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(self)
@@ -256,11 +256,14 @@ class CustomPlayer:
             else:
                 v = float("-inf")
                 for move in moves:
-                    v = max(v, min_value(game.forecast_move(move), current_depth+1))
+                    v = max(v, min_value(game.forecast_move(move), alpha, beta, current_depth+1))
+                    if v >= beta:
+                        return v
+                    alpha = max(v, alpha)
                 return v
 
 
-        def min_value(game, current_depth):
+        def min_value(game, alpha, beta, current_depth):
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(game.get_opponent(self))
@@ -269,11 +272,20 @@ class CustomPlayer:
             else:
                 v = float("inf")
                 for move in moves:
-                    v = min(v, max_value(game.forecast_move(move), current_depth+1))
+                    v = min(v, max_value(game.forecast_move(move), alpha, beta, current_depth+1))
+                    if v <= alpha:
+                        return v
+                    beta = min(v, beta)
                 return v
 
 
-        moves = game.get_legal_moves(player=self)
-        scores = map(lambda move: min_value(game.forecast_move(move), 1), moves)
-        return max(zip(scores, moves), key=lambda rec: rec[0])
+        alpha = float("-inf")
+        best_move = (-1, -1)
+        beta = float("inf")
+        for move in game.get_legal_moves(player=self):
+            v = min_value(game.forecast_move(move), alpha, beta, 1)
+            if v > alpha:
+                alpha = v
+                best_move = move
+        return alpha, best_move
 
