@@ -478,7 +478,7 @@ class Project1Test(unittest.TestCase):
 
 
     @timeout(20)
-    @unittest.skip("Skip iterative deepening test.")  # Uncomment this line to skip test
+    # @unittest.skip("Skip iterative deepening test.")  # Uncomment this line to skip test
     def test_get_move(self):
         """ Test iterative deepening in CustomPlayer.get_move by placing an
         agent on the game board and performing ID minimax search, which

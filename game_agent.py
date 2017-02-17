@@ -125,19 +125,28 @@ class CustomPlayer:
         if len(legal_moves) == 0:
             return (-1, -1)
 
+        best_move = None
         try:
             # The search method call (alpha beta or minimax) should happen in
             # here in order to avoid timeout. The try/except block will
             # automatically catch the exception raised by the search method
             # when the timer gets close to expiring
             if self.method == 'minimax':
-                _, best_move = self.minimax(game, self.search_depth)
+                search_method = self.minimax
             else:
-                _, best_move = self.alphabeta(game, self.search_depth)
+                search_method = self.alphabeta
+
+            if self.iterative:
+                depth = 1
+                while(True):
+                    _, best_move = search_method(game, depth)
+                    depth += 1
+            else:
+                _, best_move = search_method(game, self.search_depth)
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
-            return (-1, 1)
+            return best_move
 
         # Return the best move from the last completed search iteration
         return best_move
