@@ -7,6 +7,7 @@ You must test your agent's strength against a set of agents with known
 relative strength using tournament.py and include the results in your report.
 """
 import random
+import numpy as np
 
 
 class Timeout(Exception):
@@ -36,9 +37,37 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
+    if game.is_loser(player):
+        return float("-inf")
 
-    # TODO: finish this function!
-    raise NotImplementedError
+    if game.is_winner(player):
+        return float("inf")
+
+    # Move count difference
+    own_moves = len(game.get_legal_moves(player))
+    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+
+    # Cornering Heuristic
+    own_pos = game.get_player_location(player)
+    own_dist = min([abs(own_pos[0] - p[0]) + abs(own_pos[1] - p[1]) for p in [(0,0), (0, game.width), (game.height, 0), (game.height, game.width)]])
+
+    opp_pos = game.get_player_location(game.get_opponent(player))
+    opp_dist = min([abs(opp_pos[0] - p[0]) + abs(opp_pos[1] - p[1]) for p in [(0,0), (0, game.width), (game.height, 0), (game.height, game.width)]])
+
+    # Access to blank space
+    blank_spaces = game.get_blank_spaces()
+    own_dist_space = np.mean([abs(own_pos[0] - p[0]) + abs(own_pos[1] - p[1]) for p in blank_spaces])
+
+    opp_dist_dist_space = np.mean([abs(opp_pos[0] - p[0]) + abs(opp_pos[1] - p[1]) for p in blank_spaces])
+
+    # Pursuit Heuristic
+    dist = abs(own_pos[0] - opp_pos[0]) + abs(own_pos[1] - opp_pos[1])
+
+
+    if hasattr(player, 'weight_1') and hasattr(player, 'weight_2'):
+        return player.weight_1 * (3*float(2*own_moves - opp_moves) + 2*float(own_dist - opp_dist)) + player.weight_2 * (opp_dist_dist_space - own_dist_space) - player.weight_2 * dist
+    else:
+        return float(own_moves - opp_moves)
 
 
 class CustomPlayer:
@@ -72,12 +101,15 @@ class CustomPlayer:
     """
 
     def __init__(self, search_depth=3, score_fn=custom_score,
-                 iterative=True, method='minimax', timeout=10.):
+                 iterative=True, method='minimax', timeout=10.,
+                 weight_1 = 1, weight_2 = 1):
         self.search_depth = search_depth
         self.iterative = iterative
         self.score = score_fn
         self.method = method
         self.time_left = None
+        self.weight_1 = weight_1
+        self.weight_2 = weight_2
         self.TIMER_THRESHOLD = timeout
 
     def get_move(self, game, legal_moves, time_left):
@@ -125,7 +157,6 @@ class CustomPlayer:
         if len(legal_moves) == 0:
             return (-1, -1)
 
-        best_move = None
         try:
             # The search method call (alpha beta or minimax) should happen in
             # here in order to avoid timeout. The try/except block will
@@ -182,10 +213,12 @@ class CustomPlayer:
                 to pass the project unit tests; you cannot call any other
                 evaluation function directly.
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
+        def check_timer():
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
 
         def max_value(game, current_depth):
+            check_timer()
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(self)
@@ -199,6 +232,7 @@ class CustomPlayer:
 
 
         def min_value(game, current_depth):
+            check_timer()
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(game.get_opponent(self))
@@ -253,10 +287,12 @@ class CustomPlayer:
                 to pass the project unit tests; you cannot call any other
                 evaluation function directly.
         """
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
+        def check_timer():
+            if self.time_left() < self.TIMER_THRESHOLD:
+                raise Timeout()
 
         def max_value(game, alpha, beta, current_depth):
+            check_timer()
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(self)
@@ -273,6 +309,7 @@ class CustomPlayer:
 
 
         def min_value(game, alpha, beta, current_depth):
+            check_timer()
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(game.get_opponent(self))
