@@ -15,6 +15,148 @@ class Timeout(Exception):
     pass
 
 
+def manhattan_distance(p1, p2):
+    """Computes manhattan distance between two points.
+
+    Parameters
+    ----------
+    p1: Tuple of coordinates (x,y).
+    p2: Tuple of coordinates (x,y).
+
+    Returns
+    -------
+    float
+        The sum of absolute differences between the coordinates of p1 and p2.
+    """
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
+
+def weighted_move_difference(game, player):
+    """Calculate the Weighted Move Difference (WMD) heuristic.
+
+    See heuristic_analysis.pdf for details and analysis.
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The Weighted Move Difference (WMD) heuristic value.
+    """
+    # Agent move count.
+    own_moves = len(game.get_legal_moves(player))
+
+    # Opponent move count.
+    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+
+    return float(2*own_moves - opp_moves)
+
+
+def cornering(game, player):
+    """Calculate the Cornering (C) heuristic.
+
+    See heuristic_analysis.pdf for details and analysis.
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The Cornering (C) heuristic value.
+    """
+    # Game board corners
+    corners = [(0, 0), (0, game.width), (game.height, 0), (game.height, game.width)]
+
+    # Agent minimum distance to a game board corner.
+    own_pos = game.get_player_location(player)
+    own_dist = min([manhattan_distance(own_pos, p) for p in corners])
+
+    # Opponent minimum distance to a game board corner.
+    opp_pos = game.get_player_location(game.get_opponent(player))
+    opp_dist = min([manhattan_distance(opp_pos, p) for p in corners])
+
+    return float(own_dist - opp_dist)
+
+
+def space_access(game, player):
+    """Calculate the Space Access (AS) heuristic.
+
+    See heuristic_analysis.pdf for details and analysis.
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The Space Access (AS) heuristic value.
+    """
+    # Game board corners
+    blank_spaces = game.get_blank_spaces()
+
+    # Agent average distance to a game board blank space.
+    own_pos = game.get_player_location(player)
+    own_dist = np.mean([manhattan_distance(own_pos, p) for p in blank_spaces])
+
+    # Opponent average distance to a game board blank space.
+    opp_pos = game.get_player_location(game.get_opponent(player))
+    opp_dist = np.mean([manhattan_distance(opp_pos, p) for p in blank_spaces])
+
+    return float(opp_dist - own_dist)
+
+
+def opponent_pursuit(game, player):
+    """Calculate the Opponent Pursuit (OP) heuristic.
+
+    See heuristic_analysis.pdf for details and analysis.
+
+    Parameters
+    ----------
+    game : `isolation.Board`
+        An instance of `isolation.Board` encoding the current state of the
+        game (e.g., player locations and blocked cells).
+
+    player : object
+        A player instance in the current game (i.e., an object corresponding to
+        one of the player objects `game.__player_1__` or `game.__player_2__`.)
+
+    Returns
+    -------
+    float
+        The Opponent Pursuit (OP) heuristic value.
+    """
+    # Agent position
+    own_pos = game.get_player_location(player)
+
+    # Opponent position
+    opp_pos = game.get_player_location(game.get_opponent(player))
+
+    return manhattan_distance(own_pos, opp_pos)
+
+
 def custom_score(game, player):
     """Calculate the heuristic value of a game state from the point of view
     of the given player.
@@ -43,31 +185,7 @@ def custom_score(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    # Move count difference
-    own_moves = len(game.get_legal_moves(player))
-    opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
-
-    # Cornering Heuristic
-    own_pos = game.get_player_location(player)
-    own_dist = min([abs(own_pos[0] - p[0]) + abs(own_pos[1] - p[1]) for p in [(0,0), (0, game.width), (game.height, 0), (game.height, game.width)]])
-
-    opp_pos = game.get_player_location(game.get_opponent(player))
-    opp_dist = min([abs(opp_pos[0] - p[0]) + abs(opp_pos[1] - p[1]) for p in [(0,0), (0, game.width), (game.height, 0), (game.height, game.width)]])
-
-    # Access to blank space
-    blank_spaces = game.get_blank_spaces()
-    own_dist_space = np.mean([abs(own_pos[0] - p[0]) + abs(own_pos[1] - p[1]) for p in blank_spaces])
-
-    opp_dist_dist_space = np.mean([abs(opp_pos[0] - p[0]) + abs(opp_pos[1] - p[1]) for p in blank_spaces])
-
-    # Pursuit Heuristic
-    dist = abs(own_pos[0] - opp_pos[0]) + abs(own_pos[1] - opp_pos[1])
-
-
-    if hasattr(player, 'weight_1') and hasattr(player, 'weight_2'):
-        return player.weight_1 * (3*float(2*own_moves - opp_moves) + 2*float(own_dist - opp_dist)) + player.weight_2 * (opp_dist_dist_space - own_dist_space) - player.weight_2 * dist
-    else:
-        return float(own_moves - opp_moves)
+    return 3*weighted_move_difference(game, player) + 2*cornering(game, player)
 
 
 class CustomPlayer:
@@ -101,16 +219,18 @@ class CustomPlayer:
     """
 
     def __init__(self, search_depth=3, score_fn=custom_score,
-                 iterative=True, method='minimax', timeout=10.,
-                 weight_1 = 1, weight_2 = 1):
+                 iterative=True, method='minimax', timeout=10.):
         self.search_depth = search_depth
         self.iterative = iterative
         self.score = score_fn
         self.method = method
         self.time_left = None
-        self.weight_1 = weight_1
-        self.weight_2 = weight_2
         self.TIMER_THRESHOLD = timeout
+
+    def check_timer(self):
+        "Method to check whether there remains time to search."
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
 
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
@@ -150,36 +270,33 @@ class CustomPlayer:
 
         self.time_left = time_left
 
-        # TODO: finish this function!
-        # Perform any required initializations, including selecting an initial
-        # move from the game board (i.e., an opening book), or returning
-        # immediately if there are no legal moves
+        # If no moves available return.
         if len(legal_moves) == 0:
             return (-1, -1)
 
         try:
-            # The search method call (alpha beta or minimax) should happen in
-            # here in order to avoid timeout. The try/except block will
-            # automatically catch the exception raised by the search method
-            # when the timer gets close to expiring
+            # Determine which search method to use.
             if self.method == 'minimax':
                 search_method = self.minimax
             else:
                 search_method = self.alphabeta
 
             if self.iterative:
+                # If iterative, then calculate best move for
+                # increasing depths while time permits.
                 depth = 1
                 while(True):
                     _, best_move = search_method(game, depth)
                     depth += 1
             else:
+                # Otherwise, calculate best move using specified search depth.
                 _, best_move = search_method(game, self.search_depth)
 
         except Timeout:
-            # Handle any actions required at timeout, if necessary
+            # Return the best move we found before the timeout.
             return best_move
 
-        # Return the best move from the last completed search iteration
+        # Return the best move from the last completed search iteration.
         return best_move
 
     def minimax(self, game, depth, maximizing_player=True):
@@ -213,18 +330,18 @@ class CustomPlayer:
                 to pass the project unit tests; you cannot call any other
                 evaluation function directly.
         """
-        def check_timer():
-            if self.time_left() < self.TIMER_THRESHOLD:
-                raise Timeout()
-
         def max_value(game, current_depth):
-            check_timer()
+            """Maximizer Action"""
+            self.check_timer()
+            # If we reached specified depth, then evaluate node score.
             if current_depth == depth:
                 return self.score(game, self)
+            # If there are no moves left, see if we won or lost.
             moves = game.get_legal_moves(self)
             if len(moves) == 0:
                 return game.utility(self)
             else:
+                # Otherwise select action that yields the maximum score.
                 v = float("-inf")
                 for move in moves:
                     v = max(v, min_value(game.forecast_move(move), current_depth+1))
@@ -232,19 +349,24 @@ class CustomPlayer:
 
 
         def min_value(game, current_depth):
-            check_timer()
+            """Minimizer Action."""
+            self.check_timer()
+            # If we reached specified depth, then evaluate node score.
             if current_depth == depth:
                 return self.score(game, self)
+            # If there are no moves left, see if we won or lost.
             moves = game.get_legal_moves(game.get_opponent(self))
             if len(moves) == 0:
                 return game.utility(self)
             else:
+                # Otherwise select action that yields the minimum score.
                 v = float("inf")
                 for move in moves:
                     v = min(v, max_value(game.forecast_move(move), current_depth+1))
                 return v
 
-
+        # Minimax search begins here at the maximizer level.  We select the move
+        # that maximizes the score propagated all the way up to the root.
         moves = game.get_legal_moves(player=self)
         scores = map(lambda move: min_value(game.forecast_move(move), 1), moves)
         return max(zip(scores, moves), key=lambda rec: rec[0])
@@ -287,18 +409,22 @@ class CustomPlayer:
                 to pass the project unit tests; you cannot call any other
                 evaluation function directly.
         """
-        def check_timer():
-            if self.time_left() < self.TIMER_THRESHOLD:
-                raise Timeout()
 
         def max_value(game, alpha, beta, current_depth):
-            check_timer()
+            "Maximizer Action"
+            self.check_timer()
+            # If we reached specified depth, then evaluate node score.
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(self)
+            # If there are no moves left, see if we won or lost.
             if len(moves) == 0:
                 return game.utility(self)
             else:
+                # Otherwise select action that yields the maximum score.  If we find
+                # a node with a score > beta (best score so far for minimizer), no need
+                # to proceed (ie. we can prune) since the minimizer will never allow play
+                # to reach this point.
                 v = float("-inf")
                 for move in moves:
                     v = max(v, min_value(game.forecast_move(move), alpha, beta, current_depth+1))
@@ -309,13 +435,20 @@ class CustomPlayer:
 
 
         def min_value(game, alpha, beta, current_depth):
-            check_timer()
+            "Minimizer Action"
+            self.check_timer()
+            # If we reached specified depth, then evaluate node score.
             if current_depth == depth:
                 return self.score(game, self)
             moves = game.get_legal_moves(game.get_opponent(self))
+            # If there are no moves left, see if we won or lost.
             if len(moves) == 0:
                 return game.utility(self)
             else:
+                # Otherwise select action that yields the minimum score.  If we find
+                # a node with a score < alpha (best score so far for maximizer), no need
+                # to proceed (ie. we can prune) since the maximizer will never allow play
+                # to reach this point.
                 v = float("inf")
                 for move in moves:
                     v = min(v, max_value(game.forecast_move(move), alpha, beta, current_depth+1))
@@ -324,10 +457,12 @@ class CustomPlayer:
                     beta = min(v, beta)
                 return v
 
-
+        # Alpha-Beta search begins here with alpha = -inf (worst score for maximizer) and
+        # beta = + inf (worst score for minimizer).
         alpha = float("-inf")
         best_move = (-1, -1)
         beta = float("inf")
+        # Select move that maximizes the score propagated all the way up to the root.
         for move in game.get_legal_moves(player=self):
             v = min_value(game.forecast_move(move), alpha, beta, 1)
             if v > alpha:

@@ -160,12 +160,8 @@ def main():
     # systems; i.e., the performance of the student agent is considered
     # relative to the performance of the ID_Improved agent to account for
     # faster or slower computers.
-    test_agents = [Agent(CustomPlayer(score_fn=improved_score, **CUSTOM_ARGS), "ID_Improved")]
-    test_agents += [
-        Agent(CustomPlayer(score_fn=custom_score, weight_1=w1, weight_2=w2, **CUSTOM_ARGS), "Student_%d_%d" % (w1, w2))
-        for w1 in range(1,5) for w2 in range(1,5) if w1 != w2]
-    #test_agents += [
-    #    Agent(CustomPlayer(score_fn=custom_score, weight_1=2, weight_2=1, **CUSTOM_ARGS), "Student_%d_%d" % (2, 1))]
+    test_agents = [Agent(CustomPlayer(score_fn=improved_score, **CUSTOM_ARGS), "ID_Improved"),
+                   Agent(CustomPlayer(score_fn=custom_score, **CUSTOM_ARGS), "Student")]
 
     print(DESCRIPTION)
     for agentUT in test_agents:
